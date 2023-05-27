@@ -16,7 +16,8 @@ struct State {
     bar: u32,
 }
 
-let mut state = File::<State>::new("mystate.json").await?; // create or open state file at given path
+// create or open state file at given path
+let mut state = File::<State>::new("mystate.json").await?;
 // if the file doesn't exist or is empty, State will contain default values
 
 let mut write_guard = file.write().await; // grab write access
