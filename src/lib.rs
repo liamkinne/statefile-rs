@@ -41,6 +41,10 @@ impl<'a, T: Serialize + DeserializeOwned + Default> std::ops::DerefMut for Write
     }
 }
 
+/// A state file.
+///
+/// This provides strongly typed access to a JSON file wrapped in a `RwLock`
+/// that writes to disk once write access is dropped.
 pub struct File<T: Serialize + DeserializeOwned + Default> {
     data: RwLock<T>,
     path: PathBuf,
@@ -71,10 +75,14 @@ impl<T: Serialize + DeserializeOwned + Default> File<T> {
         Ok(File { data, path })
     }
 
+    /// Locks this state file with shared read access, causing the current task
+    /// to yield until the lock has been acquired.
     pub async fn read(&self) -> RwLockReadGuard<'_, T> {
         self.data.read().await
     }
 
+    /// Locks this state file with exclusive write access, causing the current
+    /// task to yield until the lock has been acquired.
     pub async fn write(&self) -> WriteGuard<'_, T> {
         WriteGuard {
             guard: self.data.write().await,
