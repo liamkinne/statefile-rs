@@ -72,6 +72,7 @@ pub struct File<T: Serialize + DeserializeOwned + Default> {
 }
 
 impl<T: Serialize + DeserializeOwned + Default> File<T> {
+    /// Create a new state file at the given path
     pub async fn new(path: impl AsRef<Path> + Copy) -> Result<Self, Box<dyn Error>> {
         let mut file = OpenOptions::new()
             .read(true)
