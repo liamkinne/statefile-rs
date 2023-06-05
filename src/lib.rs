@@ -13,16 +13,38 @@ pub struct WriteGuard<'a, T: Serialize + DeserializeOwned + Default> {
 
 impl<'a, T: Serialize + DeserializeOwned + Default> Drop for WriteGuard<'a, T> {
     fn drop(&mut self) {
-        let json = serde_json::to_string_pretty(&*self.guard).unwrap();
-        // write the data back to the file
+        // convert data structure to pretty JSON string
+        let json = match serde_json::to_string_pretty(&*self.guard) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("Failed to serialize JSON: {}", e);
+                return;
+            }
+        };
+
+        // open the state file
         let path = self.path.clone();
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(path)
-            .unwrap();
-        file.write_all(json.as_bytes()).unwrap();
-        file.flush().unwrap();
+        let mut file = match OpenOptions::new().write(true).create(true).open(&path) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("Failed to open file {}: {}", path.display(), e);
+                return;
+            }
+        };
+
+        // write to disk
+        if let Err(e) = file.write_all(json.as_bytes()) {
+            log::error!("Failed to write to file {}: {}", path.display(), e);
+            return;
+        }
+
+        // ensure data makes it to disk
+        if let Err(e) = file.flush() {
+            log::error!("Failed to flush file {}: {}", path.display(), e);
+            return;
+        }
+
+        log::info!("Data successfully written to file {}", path.display())
     }
 }
 
