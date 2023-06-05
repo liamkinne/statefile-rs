@@ -1,10 +1,9 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::error::Error;
+use std::fs::OpenOptions;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use std::thread;
-use tokio::fs::OpenOptions;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 pub struct WriteGuard<'a, T: Serialize + DeserializeOwned + Default> {
@@ -14,16 +13,16 @@ pub struct WriteGuard<'a, T: Serialize + DeserializeOwned + Default> {
 
 impl<'a, T: Serialize + DeserializeOwned + Default> Drop for WriteGuard<'a, T> {
     fn drop(&mut self) {
-        // write the data back to the file when dropped
         let json = serde_json::to_string_pretty(&*self.guard).unwrap();
+        // write the data back to the file
         let path = self.path.clone();
-        thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async {
-                let mut file = OpenOptions::new().write(true).open(path).await.unwrap();
-                file.write_all(json.as_bytes()).await.unwrap();
-            });
-        });
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(path)
+            .unwrap();
+        file.write_all(json.as_bytes()).unwrap();
+        file.flush().unwrap();
     }
 }
 
@@ -56,11 +55,10 @@ impl<T: Serialize + DeserializeOwned + Default> File<T> {
             .read(true)
             .write(true)
             .create(true)
-            .open(path)
-            .await?;
+            .open(path)?;
 
         let mut contents = String::new();
-        file.read_to_string(&mut contents).await?;
+        file.read_to_string(&mut contents)?;
 
         let data = if contents.is_empty() {
             T::default()
@@ -114,14 +112,18 @@ mod tests {
         drop(write_guard); // Forces the Drop trait to be called, data should be written to the file
 
         let mut file_content = String::new();
-        tokio::fs::File::open(test_path)
-            .await
+        std::fs::File::open(test_path)
             .unwrap()
             .read_to_string(&mut file_content)
-            .await
             .unwrap();
 
-        assert_eq!(file_content, r#"{"field1":"Test String","field2":42}"#);
+        assert_eq!(
+            file_content,
+            r#"{
+  "field1": "Test String",
+  "field2": 42
+}"#
+        );
 
         let _ = fs::remove_file(test_path); // Clean up test file
     }
@@ -129,9 +131,7 @@ mod tests {
     #[tokio::test]
     async fn test_file_read() {
         let test_path = "test_file.json";
-        tokio::fs::write(test_path, r#"{"field1":"Test String","field2":42}"#)
-            .await
-            .unwrap(); // Write initial data
+        std::fs::write(test_path, r#"{"field1":"Test String","field2":42}"#).unwrap(); // Write initial data
 
         let file = File::<TestData>::new(test_path).await.unwrap();
         let read_guard = file.read().await;
@@ -145,7 +145,7 @@ mod tests {
     #[tokio::test]
     async fn test_file_read_default() {
         let test_path = "test_file_empty.json";
-        tokio::fs::write(test_path, "").await.unwrap(); // Write empty file
+        std::fs::write(test_path, "").unwrap(); // Write empty file
 
         let file = File::<TestData>::new(test_path).await.unwrap();
         let read_guard = file.read().await;
