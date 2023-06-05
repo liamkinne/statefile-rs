@@ -103,7 +103,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_file_create_and_write() {
-        let test_path = "test_file.json";
+        let test_path = "test_file_create_and_write.json";
         let file = File::<TestData>::new(test_path).await.unwrap();
 
         let mut write_guard = file.write().await;
@@ -130,7 +130,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_file_read() {
-        let test_path = "test_file.json";
+        let test_path = "test_file_read.json";
         std::fs::write(test_path, r#"{"field1":"Test String","field2":42}"#).unwrap(); // Write initial data
 
         let file = File::<TestData>::new(test_path).await.unwrap();
@@ -144,7 +144,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_file_read_default() {
-        let test_path = "test_file_empty.json";
+        let test_path = "test_file_read_default.json";
         std::fs::write(test_path, "").unwrap(); // Write empty file
 
         let file = File::<TestData>::new(test_path).await.unwrap();
