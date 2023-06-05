@@ -66,6 +66,31 @@ impl<'a, T: Serialize + DeserializeOwned + Default> std::ops::DerefMut for Write
 ///
 /// This provides strongly typed access to a JSON file wrapped in a `RwLock`
 /// that writes to disk once write access is dropped.
+///
+/// ```rust
+/// use statefile::File;
+/// use serde::{Deserialize, Serialize};
+///
+/// // you must specify at least these derivations
+/// #[derive(Serialize, Deserialize, Default)]
+/// struct State {
+///     foo: String,
+///     bar: u32,
+/// }
+///
+/// #[tokio::main]
+/// async fn main() {
+///     // create or open state file at given path
+///     let mut state = File::<State>::new("mystate.json").await.unwrap();
+///     // if the file doesn't exist or is empty, State will contain default values
+///
+///     let mut write_guard = state.write().await; // grab write access
+///     write_guard.foo = "".to_string();
+///     write_guard.bar = 10;
+///     drop(write_guard); // write state by explicitly dropping
+/// }
+/// ```
+///
 pub struct File<T: Serialize + DeserializeOwned + Default> {
     data: RwLock<T>,
     path: PathBuf,
